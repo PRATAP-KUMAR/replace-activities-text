@@ -42,7 +42,10 @@ class PrefsWidget {
         this.vbox.append(this.addPictureUrl());
         this.vbox.append(this.addTextUrl());
         this.vbox.append(this.adjustLogo());
+        this.vbox.append(this.rightClick());
+        this.vbox.append(new Gtk.Separator({ orientation: Gtk.Orientation.HORIZONTAL, margin_bottom: 5, margin_top: 5}));
         this.vbox.append(this.tip());
+        
         
         this.widget.append(this.vbox);
     }
@@ -118,7 +121,18 @@ class PrefsWidget {
         
         hbox.append(tip_label);
         return hbox;
-    	}
+    }
+    	
+    	rightClick() {
+    	let hbox = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL, margin_top: 5 });
+        let rightClick_label = new Gtk.Label({ label: "Right Click on 'Activities' Area Opens Extension Prefs", xalign: 0, hexpand: true });
+        this.rightClick_switch = new Gtk.Switch({ active: this.gsettings.get_boolean('right-click') });
+        this.rightClick_switch.connect('notify::active', (button) => { this.gsettings.set_boolean('right-click', button.active); });
+        
+        hbox.append(rightClick_label);
+        hbox.append(this.rightClick_switch);
+        return hbox;
+    }
     
         addTextUrl() {
         let hbox = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL, margin_top: 5 });
@@ -149,7 +163,7 @@ class PrefsWidget {
 
     showFileChooserDialog() {
         let fileChooser = new Gtk.FileChooserDialog({ title: "Select File" });
-        fileChooser.set_transient_for(this.widget.get_parent().get_parent());
+        fileChooser.set_transient_for(this.widget.get_root());
         fileChooser.set_default_response(1);
 
         let filter = new Gtk.FileFilter();

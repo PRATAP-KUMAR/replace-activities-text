@@ -20,6 +20,12 @@
 <summary>Summary</summary>
 <description>Description</description>
 </key>
+
+<key name="right-click" type="b">
+<default>false</default>
+<summary>Summary</summary>
+<description>Description</description>
+</key>
     
 </schema>
 </schemalist>

@@ -79,6 +79,67 @@ class ActivitiesIconButton extends PanelMenu.Button {
     }
 
     vfunc_event(event) {
+        if (event.type() == Clutter.EventType.TOUCH_END ||
+            event.type() == Clutter.EventType.BUTTON_RELEASE) {
+            if (Main.overview.shouldToggleByCornerOrButton())
+                Main.overview.toggle();
+        }
+        return Clutter.EVENT_PROPAGATE;
+    }
+
+    vfunc_key_release_event(keyEvent) {
+        let symbol = keyEvent.keyval;
+        if (symbol == Clutter.KEY_Return || symbol == Clutter.KEY_space) {
+            if (Main.overview.shouldToggleByCornerOrButton()) {
+                Main.overview.toggle();
+                return Clutter.EVENT_STOP;
+            }
+        }
+
+        return Clutter.EVENT_PROPAGATE;
+    }
+});
+
+var ActivitiesIconButtonRightClick = GObject.registerClass(
+class ActivitiesIconButtonRightClick extends PanelMenu.Button {
+
+    _init() {
+        super._init(0.0, null, true);
+        this.container.name = 'panelActivitiesIconButtonContainer';
+        this.accessible_role = Atk.Role.TOGGLE_BUTTON;
+        this.name = 'panelActivitiesIconButton';
+        this._iconLabelBox = new St.BoxLayout({style_class: 'space'});
+        this._iconBin = new St.Bin();
+        this._textBin = new St.Bin();
+        this._iconLabelBox.add(this._iconBin);
+        this._label = new St.Label({ text: "", y_align:Clutter.ActorAlign.CENTER });
+        this._textBin.child = this._label;
+        this._iconLabelBox.add(this._textBin);
+        this.add_actor(this._iconLabelBox);
+        this.label_actor = this._label;
+        
+        this._overviewShowingSig = 0;
+        this._overviewHidingSig = 0;
+
+        this._overviewShowingSig = Main.overview.connect('showing', () => {
+            this.add_style_pseudo_class('overview');
+            this.add_accessible_state(Atk.StateType.CHECKED);
+        });
+        this._overviewHidingSig = Main.overview.connect('hiding', () => {
+            this.remove_style_pseudo_class('overview');
+            this.remove_accessible_state(Atk.StateType.CHECKED);
+        });
+    }
+
+    set label(labelText) {
+        this._label.set_text(labelText);
+    }
+
+    get label() {
+        return (this._label.get_text());
+    }
+
+    vfunc_event(event) {
         if (event.type() == Clutter.EventType.BUTTON_RELEASE && event.get_button() == 3) {
             let app_path = '/usr/bin/gnome-extensions';
             if (GLib.file_test(app_path, GLib.FileTest.EXISTS)) {
@@ -115,8 +176,9 @@ class Configurator {
         this._settings.connect('changed::icon-path', this._setIconAndLabel.bind(this));
         this._settings.connect('changed::text', this._setIconAndLabel.bind(this))
         this._settings.connect('changed::icon-size', this._setIconAndLabel.bind(this));
+        this._settings.connect('changed::right-click', this._rightClick.bind(this));
     }
-
+    
     _setIconAndLabel() {
     
             let iconPath = this._settings.get_string('icon-path');
@@ -131,7 +193,7 @@ class Configurator {
             
             let labelText = this._settings.get_string('text');
             
-            if(labelText === "Default") { labelText = GLib.get_os_info("PRETTY_NAME");
+            if(labelText === "Default") { labelText = GLib.get_os_info("PRETTY_NAME") + ' | ' + (imports.misc.config.PACKAGE_NAME).toUpperCase() + ' ' + imports.misc.config.PACKAGE_VERSION;
             this._activitiesIconButton.label = labelText;
             this._activitiesIconButton._textBin.show(); } else if(!labelText) {
             this._activitiesIconButton._textBin.hide(); } else {
@@ -143,12 +205,23 @@ class Configurator {
             else { this._activitiesIconButton.show(); }
     }
     
+    _rightClick() {
+    this.disable();
+    this.enable();
+    }
+    
     enable() {
-        this._settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.replaceActivitiesText');
-        Main.panel.statusArea.activities.container.hide();
-        this._activitiesIconButton = new ActivitiesIconButton();
+        this._settings = ExtensionUtils.getSettings();
+        let rightClick = this._settings.get_boolean('right-click');
+        
+        if (!rightClick) { this._activitiesIconButton = new ActivitiesIconButton();
+        } else { this._activitiesIconButton = new ActivitiesIconButtonRightClick();
+        }
+        
         this._connectSettings();
         this._setIconAndLabel();
+        
+        Main.panel.statusArea.activities.container.hide();
         Main.panel.addToStatusArea('activities-icon-button', this._activitiesIconButton, 0, 'left');
     }
 
