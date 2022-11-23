@@ -4,9 +4,10 @@
   "name": "Replace Activities Text",
   "settings-schema": "org.gnome.shell.extensions.replaceActivitiesText",
   "shell-version": [
-    "42"
+    "42",
+    "43"
   ],
   "url": "https://github.com/PRATAP-KUMAR/ActivitiesText",
   "uuid": "replaceActivitiesText@pratap.fastmail.fm",
-  "version": 12
+  "version": 14
 }
