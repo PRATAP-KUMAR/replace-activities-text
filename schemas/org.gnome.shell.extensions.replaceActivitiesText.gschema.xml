@@ -3,7 +3,7 @@
 <schema id="org.gnome.shell.extensions.replaceActivitiesText" path="/org/gnome/shell/extensions/replaceActivitiesText/">
   
 <key name="icon-path" type="s">
-<default>'/usr/share/icons/Adwaita/scalable/emotes/face-smile-big-symbolic.svg'</default>
+<default>'/usr/share/icons/Adwaita/symbolic/emotes/face-smile-big-symbolic.svg'</default>
 <summary>Summary</summary>
 <description>Description</description>
 </key>
