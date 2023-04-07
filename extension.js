@@ -28,155 +28,163 @@
   This extension is a derived work of the Gnome Shell.
 */
 
-const {
-  GObject, Shell, St, Atk, Clutter, Gio, GLib,
-} = imports.gi;
+'use strict';
+
+const {GObject, St, Atk, Clutter, Gio, GLib} = imports.gi;
 
 const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
 
 const ExtensionUtils = imports.misc.extensionUtils;
 
-const ActivitiesIconButton = GObject.registerClass(
-  class ActivitiesIconButtonRightClick extends PanelMenu.Button {
-    _init(boolean) {
-      super._init(0.0, null, true);
-      this.container.name = 'panelActivitiesIconButtonContainer';
-      this.accessible_role = Atk.Role.TOGGLE_BUTTON;
-      this.name = 'panelActivitiesIconButton';
-      this._iconLabelBox = new St.BoxLayout({ style_class: 'space' });
-      this._iconBin = new St.Bin();
-      this._textBin = new St.Bin();
-      this._iconLabelBox.add(this._iconBin);
-      this._label = new St.Label({ text: '', y_align: Clutter.ActorAlign.CENTER });
-      this._textBin.child = this._label;
-      this._iconLabelBox.add(this._textBin);
-      this.add_actor(this._iconLabelBox);
-      this.label_actor = this._label;
+var ActivitiesIconButton = GObject.registerClass(
+    class ActivitiesIconButton extends PanelMenu.Button {
+        _init(rightClick) {
+            super._init(0, 'replace activities text extension', false);
+            this.accessible_role = Atk.Role.TOGGLE_BUTTON;
+            this._iconLabelBox = new St.BoxLayout();
+            this._iconBin = new St.Bin({style_class: 'replace-ext-icon-cnt'});
+            this._iconLabelBox.add(this._iconBin);
+            this._label = new St.Label({text: '', y_align: Clutter.ActorAlign.CENTER});
+            this._textBin = new St.Bin({style_class: 'replace-ext-text-cnt'});
+            this._textBin.child = this._label;
+            this._iconLabelBox.add(this._textBin);
+            this.add_actor(this._iconLabelBox);
+            this.label_actor = this._label;
+            this._boolean = rightClick;
 
-      this._overviewShowingSig = 0;
-      this._overviewHidingSig = 0;
+            this._overviewShowingSig = 0;
+            this._overviewHidingSig = 0;
 
-      this._overviewShowingSig = Main.overview.connect('showing', () => {
-        this.add_style_pseudo_class('overview');
-        this.add_accessible_state(Atk.StateType.CHECKED);
-      });
-      this._overviewHidingSig = Main.overview.connect('hiding', () => {
-        this.remove_style_pseudo_class('overview');
-        this.remove_accessible_state(Atk.StateType.CHECKED);
-      });
-
-      this._boolean = boolean;
-    }
-
-    set label(labelText) {
-      this._label.set_text(labelText);
-    }
-
-    get label() {
-      return (this._label.get_text());
-    }
-
-    vfunc_event(event) {
-      if (this._boolean) {
-        if (event.type() == Clutter.EventType.BUTTON_RELEASE && event.get_button() == 3) {
-          const app_path = '/usr/bin/gnome-extensions';
-          if (GLib.file_test(app_path, GLib.FileTest.EXISTS)) {
-            ExtensionUtils.openPrefs();
-          }
-          return Clutter.EVENT_PROPAGATE;
-        } if (event.type() == Clutter.EventType.TOUCH_END
-          || event.type() == Clutter.EventType.BUTTON_RELEASE) {
-          if (Main.overview.shouldToggleByCornerOrButton()) Main.overview.toggle();
+            this._overviewShowingSig = Main.overview.connect('showing', () => {
+                this.add_style_pseudo_class('overview');
+                this.add_accessible_state(Atk.StateType.CHECKED);
+            });
+            this._overviewHidingSig = Main.overview.connect('hiding', () => {
+                this.remove_style_pseudo_class('overview');
+                this.remove_accessible_state(Atk.StateType.CHECKED);
+            });
         }
-        return Clutter.EVENT_PROPAGATE;
-      }
-      if (event.type() == Clutter.EventType.TOUCH_END
-          || event.type() == Clutter.EventType.BUTTON_RELEASE) {
-        if (Main.overview.shouldToggleByCornerOrButton()) Main.overview.toggle();
-      }
-      return Clutter.EVENT_PROPAGATE;
-    }
 
-    vfunc_key_release_event(keyEvent) {
-      const symbol = keyEvent.keyval;
-      if (symbol == Clutter.KEY_Return || symbol == Clutter.KEY_space) {
-        if (Main.overview.shouldToggleByCornerOrButton()) {
-          Main.overview.toggle();
-          return Clutter.EVENT_STOP;
+        set label(labelText) {
+            this._label.set_text(labelText);
         }
-      }
 
-      return Clutter.EVENT_PROPAGATE;
-    }
-  },
-);
+        get label() {
+            return this._label.get_text();
+        }
+
+        vfunc_event(event) {
+            if (event.type() === Clutter.EventType.BUTTON_RELEASE && event.get_button() === 3 && this._boolean) {
+                let appPath = '/usr/bin/gnome-extensions';
+                if (GLib.file_test(appPath, GLib.FileTest.EXISTS))
+                    ExtensionUtils.openPrefs();
+
+                return Clutter.EVENT_PROPAGATE;
+            } else {
+                if (event.type() === Clutter.EventType.TOUCH_END ||
+                    event.type() === Clutter.EventType.BUTTON_RELEASE) {
+                    if (Main.overview.shouldToggleByCornerOrButton())
+                        Main.overview.toggle();
+                }
+                return Clutter.EVENT_PROPAGATE;
+            }
+        }
+
+        vfunc_key_release_event(keyEvent) {
+            let symbol = keyEvent.keyval;
+            if (symbol === Clutter.KEY_Return || symbol === Clutter.KEY_space) {
+                if (Main.overview.shouldToggleByCornerOrButton()) {
+                    Main.overview.toggle();
+                    return Clutter.EVENT_STOP;
+                }
+            }
+            return Clutter.EVENT_PROPAGATE;
+        }
+    });
 
 class Configurator {
-  constructor() {
-  }
-
-  _connectSettings() {
-    this._settings.connect('changed::icon-path', this._setIconAndLabel.bind(this));
-    this._settings.connect('changed::text', this._setIconAndLabel.bind(this));
-    this._settings.connect('changed::icon-size', this._setIconAndLabel.bind(this));
-    this._settings.connect('changed::right-click', this._rightClick.bind(this));
-  }
-
-  _setIconAndLabel() {
-    const iconPath = this._settings.get_string('icon-path');
-    if (!GLib.file_test(iconPath, GLib.FileTest.EXISTS)) {
-      this._activitiesIconButton._iconBin.hide();
-    } else {
-      this._activitiesIconButton._iconBin.child = new St.Icon(
-        { gicon: Gio.icon_new_for_string(iconPath), icon_size: Main.panel.height * this._settings.get_double('icon-size') / 2 },
-      );
-      this._activitiesIconButton._iconBin.show();
+    _connectSettings() {
+        this._iconPathChangeId = this._settings.connect('changed::icon-path', this._setIconAndLabel.bind(this));
+        this._textChangeId = this._settings.connect('changed::text', this._setIconAndLabel.bind(this));
+        this._iconSizeChangeId = this._settings.connect('changed::icon-size', this._setIconAndLabel.bind(this));
+        this._rightClickChangeId = this._settings.connect('changed::right-click', this._rightClick.bind(this));
     }
 
-    let labelText = this._settings.get_string('text');
+    _setIconAndLabel() {
+        let iconPath = this._settings.get_string('icon-path');
+        if (!GLib.file_test(iconPath, GLib.FileTest.EXISTS)) {
+            this._activitiesIconButton._iconBin.hide();
+        } else {
+            this._activitiesIconButton._iconBin.child = new St.Icon(
+                {gicon: Gio.icon_new_for_string(iconPath), icon_size: Main.panel.height * this._settings.get_double('icon-size') / 2});
+            this._activitiesIconButton._iconBin.show();
+        }
 
-    if (labelText === 'Default') {
-      labelText = `${GLib.get_os_info('PRETTY_NAME')} | ${(imports.misc.config.PACKAGE_NAME).toUpperCase()} ${imports.misc.config.PACKAGE_VERSION}`;
-      this._activitiesIconButton.label = labelText;
-      this._activitiesIconButton._textBin.show();
-    } else if (!labelText) {
-      this._activitiesIconButton._textBin.hide();
-    } else {
-      this._activitiesIconButton.label = labelText;
-      this._activitiesIconButton._textBin.show();
+        let labelText = this._settings.get_string('text');
+
+        if (labelText === 'default') {
+            const text = `${GLib.get_os_info('PRETTY_NAME')} | ${imports.misc.config.PACKAGE_NAME.toUpperCase()} ${imports.misc.config.PACKAGE_VERSION}`;
+            this._activitiesIconButton.label = text;
+            this._activitiesIconButton._textBin.show();
+        } else if (labelText === '') {
+            this._activitiesIconButton._textBin.hide();
+        } else {
+            this._activitiesIconButton.label = labelText;
+            this._activitiesIconButton._textBin.show();
+        }
+
+        if (!GLib.file_test(iconPath, GLib.FileTest.EXISTS) && !labelText)
+            this._activitiesIconButton.hide();
+        else
+            this._activitiesIconButton.show();
+
+        if (this._activitiesIconButton._iconBin.visible && !this._activitiesIconButton._textBin.visible) {
+            this._activitiesIconButton.remove_style_class_name('panel-button');
+        } else if (this._activitiesIconButton._iconBin.visible && this._activitiesIconButton._textBin.visible) {
+            this._activitiesIconButton._textBin.set_style('padding-left: 5px');
+            this._activitiesIconButton.add_style_class_name('panel-button');
+        }
     }
 
-    if (!GLib.file_test(iconPath, GLib.FileTest.EXISTS) && (!labelText)) { this._activitiesIconButton.hide(); } else { this._activitiesIconButton.show(); }
-  }
+    _rightClick() {
+        this.disable();
+        this.enable();
+    }
 
-  _rightClick() {
-    this.disable();
-    this.enable();
-  }
+    enable() {
+        this._settings = ExtensionUtils.getSettings();
+        let rightClick = this._settings.get_boolean('right-click');
 
-  enable() {
-    this._settings = ExtensionUtils.getSettings();
-    const boolean = this._settings.get_boolean('right-click');
+        this._activitiesIconButton = new ActivitiesIconButton(rightClick);
+        this._activitiesIconButton.set_style('-natural-hpadding: 0');
 
-    this._activitiesIconButton = new ActivitiesIconButton(boolean);
+        this._connectSettings();
+        this._setIconAndLabel();
 
-    this._connectSettings();
-    this._setIconAndLabel();
+        Main.panel.statusArea.activities.container.hide();
+        Main.panel.addToStatusArea('activities-icon-button', this._activitiesIconButton, 0, 'left');
+    }
 
-    Main.panel.statusArea.activities.container.hide();
-    Main.panel.addToStatusArea('activities-icon-button', this._activitiesIconButton, 0, 'left');
-  }
+    disable() {
+        let connectionsIds = [this._iconPathChangeId, this._textChangeId, this._iconSizeChangeId, this._rightClickChangeId];
+        connectionsIds.forEach(id => {
+            if (id)
+                this._settings.disconnect(id);
+        });
 
-  disable() {
-    this._activitiesIconButton.destroy();
-    this._activitiesIconButton = null;
-    if (Main.sessionMode.currentMode == 'unlock-dialog') {
-      Main.panel.statusArea.activities.container.hide();
-    } else Main.panel.statusArea.activities.container.show();
-  }
+        this._activitiesIconButton.destroy();
+        this._activitiesIconButton = null;
+        if (Main.sessionMode.currentMode === 'unlock-dialog')
+            Main.panel.statusArea.activities.container.hide(); else
+            Main.panel.statusArea.activities.container.show();
+    }
 }
 
+/**
+ *
+ */
 function init() {
-  return new Configurator();
+    return new Configurator();
 }
+
