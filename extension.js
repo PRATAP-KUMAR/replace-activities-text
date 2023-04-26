@@ -1,15 +1,15 @@
 /*
-  Replace Activities Text - Gnome Shell Extension.
-  A Simple Extension to Change 'Activities' Label with Logo and Text
+Replace Activities Text - Gnome Shell Extension.
+A Simple Extension to Change 'Activities' Label with Logo and Text
 
-  This extension is derived from https://extensions.gnome.org/extension/358/activities-configurator/
-  This extension's prefrences window is derived from https://extensions.gnome.org/extension/1476/unlock-dialog-background/
+This extension is derived from https://extensions.gnome.org/extension/358/activities-configurator/
+This extension's prefrences window is derived from https://extensions.gnome.org/extension/1476/unlock-dialog-background/
 
-  Thanks to both the above extensions Authors.
+Thanks to both the above extensions Authors.
 
-  -------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------
 
-  Copyright (c)
+Copyright (c)
 
   This extension is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -26,7 +26,7 @@
   < https://www.gnu.org/licenses/old-licenses/gpl-2.0.html >.
 
   This extension is a derived work of the Gnome Shell.
-*/
+  */
 
 'use strict';
 
@@ -36,6 +36,8 @@ const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
 
 const ExtensionUtils = imports.misc.extensionUtils;
+// const PADDING = Main.panel.statusArea.activities.get_theme_node().get_length('-natural-hpadding');
+// const COLOR = Main.panel.statusArea.activities.get_theme_node().get_foreground_color().to_string(); // "f2f2f2ff"
 
 var ActivitiesIconButton = GObject.registerClass(
     class ActivitiesIconButton extends PanelMenu.Button {
@@ -43,10 +45,10 @@ var ActivitiesIconButton = GObject.registerClass(
             super._init(0, 'replace activities text extension', false);
             this.accessible_role = Atk.Role.TOGGLE_BUTTON;
             this._iconLabelBox = new St.BoxLayout();
-            this._iconBin = new St.Bin({style_class: 'replace-ext-icon-cnt'});
+            this._iconBin = new St.Bin();
             this._iconLabelBox.add(this._iconBin);
             this._label = new St.Label({text: '', y_align: Clutter.ActorAlign.CENTER});
-            this._textBin = new St.Bin({style_class: 'replace-ext-text-cnt'});
+            this._textBin = new St.Bin();
             this._textBin.child = this._label;
             this._iconLabelBox.add(this._textBin);
             this.add_actor(this._iconLabelBox);
@@ -101,6 +103,14 @@ var ActivitiesIconButton = GObject.registerClass(
             }
             return Clutter.EVENT_PROPAGATE;
         }
+
+        destroy() {
+            if (this._overviewShowingSig !== 0)
+                Main.overview.disconnect(this._overviewShowingSig);
+            if (this._overviewHidingSig !== 0)
+                Main.overview.disconnect(this._overviewHidingSig);
+            super.destroy();
+        }
     });
 
 class Configurator {
@@ -109,6 +119,10 @@ class Configurator {
         this._textChangeId = this._settings.connect('changed::text', this._setIconAndLabel.bind(this));
         this._iconSizeChangeId = this._settings.connect('changed::icon-size', this._setIconAndLabel.bind(this));
         this._rightClickChangeId = this._settings.connect('changed::right-click', this._rightClick.bind(this));
+        this._paddingChangedId = this._settings.connect('changed::padding', this._setIconAndLabel.bind(this));
+        this._gapChangedId = this._settings.connect('changed::gap', this._setIconAndLabel.bind(this));
+        this._colorChangedId = this._settings.connect('changed::color', this._setIconAndLabel.bind(this));
+        this._iconColorChangedId = this._settings.connect('changed::icon-color', this._setIconAndLabel.bind(this));
     }
 
     _setIconAndLabel() {
@@ -139,11 +153,27 @@ class Configurator {
         else
             this._activitiesIconButton.show();
 
-        if (this._activitiesIconButton._iconBin.visible && !this._activitiesIconButton._textBin.visible) {
-            this._activitiesIconButton.remove_style_class_name('panel-button');
-        } else if (this._activitiesIconButton._iconBin.visible && this._activitiesIconButton._textBin.visible) {
-            this._activitiesIconButton._textBin.set_style('padding-left: 5px');
-            this._activitiesIconButton.add_style_class_name('panel-button');
+        this._activitiesIconButton.set_style(`-natural-hpadding: ${this._settings.get_int('padding')}px`);
+        this._activitiesIconButton._iconBin.set_style(`color: ${this._settings.get_string('icon-color')}`);
+        this._activitiesIconButton._textBin.set_style(`color: ${this._settings.get_string('color')}`);
+
+        if (this._activitiesIconButton._iconBin.visible && !this._activitiesIconButton._textBin.visible)
+            this._activitiesIconButton.set_style(`-natural-hpadding: ${this._settings.get_int('padding')}px; -minimum-hpadding: 0;`);
+
+        if (this._activitiesIconButton._iconBin.visible && this._activitiesIconButton._textBin.visible) {
+            this._activitiesIconButton._textBin.set_style(
+                `padding-left: ${this._settings.get_int('gap')}px;
+                color: ${this._settings.get_string('color')}`
+            );
+        }
+
+        if (!this._activitiesIconButton._iconBin.visible && this._activitiesIconButton._textBin.visible) {
+            this._activitiesIconButton._iconBin.show();
+            this._activitiesIconButton._textBin.set_style(
+                `padding-left: 0;
+                color: ${this._settings.get_string('color')}`
+            );
+            this._activitiesIconButton._iconBin.hide();
         }
     }
 
@@ -157,7 +187,6 @@ class Configurator {
         let rightClick = this._settings.get_boolean('right-click');
 
         this._activitiesIconButton = new ActivitiesIconButton(rightClick);
-        this._activitiesIconButton.set_style('-natural-hpadding: 0');
 
         this._connectSettings();
         this._setIconAndLabel();
@@ -167,7 +196,17 @@ class Configurator {
     }
 
     disable() {
-        let connectionsIds = [this._iconPathChangeId, this._textChangeId, this._iconSizeChangeId, this._rightClickChangeId];
+        let connectionsIds = [
+            this._iconPathChangeId,
+            this._textChangeId,
+            this._iconSizeChangeId,
+            this._rightClickChangeId,
+            this._paddingChangedId,
+            this._gapChangedId,
+            this._colorChangedId,
+            this._iconColorChangedId,
+        ];
+
         connectionsIds.forEach(id => {
             if (id)
                 this._settings.disconnect(id);
@@ -175,6 +214,7 @@ class Configurator {
 
         this._activitiesIconButton.destroy();
         this._activitiesIconButton = null;
+
         if (Main.sessionMode.currentMode === 'unlock-dialog')
             Main.panel.statusArea.activities.container.hide(); else
             Main.panel.statusArea.activities.container.show();

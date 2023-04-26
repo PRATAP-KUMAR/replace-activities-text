@@ -14,6 +14,30 @@
 <description>Description</description>
 </key>
 
+<key name="icon-color" type="s">
+<default>'blue'</default>
+<summary>Summary</summary>
+<description>Description</description>
+</key>
+
+<key name="color" type="s">
+<default>'greenyellow'</default>
+<summary>Summary</summary>
+<description>Description</description>
+</key>
+
+<key name="padding" type="i">
+<default>18</default>
+<summary>Summary</summary>
+<description>Description</description>
+</key>
+
+<key name="gap" type="i">
+<default>6</default>
+<summary>Summary</summary>
+<description>Description</description>
+</key>
+
 <key name="icon-size" type="d">
 <range min="1" max="2" />
 <default>1.5</default>
