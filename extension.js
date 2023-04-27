@@ -39,8 +39,8 @@ const ExtensionUtils = imports.misc.extensionUtils;
 // const PADDING = Main.panel.statusArea.activities.get_theme_node().get_length('-natural-hpadding');
 // const COLOR = Main.panel.statusArea.activities.get_theme_node().get_foreground_color().to_string(); // "f2f2f2ff"
 
-var ActivitiesIconButton = GObject.registerClass(
-    class ActivitiesIconButton extends PanelMenu.Button {
+var ActivitiesButton = GObject.registerClass(
+    class ActivitiesButton extends PanelMenu.Button {
         _init(rightClick) {
             super._init(0, 'replace activities text extension', false);
             this.accessible_role = Atk.Role.TOGGLE_BUTTON;
@@ -113,7 +113,7 @@ var ActivitiesIconButton = GObject.registerClass(
         }
     });
 
-class Configurator {
+class Extension {
     _connectSettings() {
         this._iconPathChangeId = this._settings.connect('changed::icon-path', this._setIconAndLabel.bind(this));
         this._textChangeId = this._settings.connect('changed::text', this._setIconAndLabel.bind(this));
@@ -121,59 +121,58 @@ class Configurator {
         this._rightClickChangeId = this._settings.connect('changed::right-click', this._rightClick.bind(this));
         this._paddingChangedId = this._settings.connect('changed::padding', this._setIconAndLabel.bind(this));
         this._gapChangedId = this._settings.connect('changed::gap', this._setIconAndLabel.bind(this));
-        this._colorChangedId = this._settings.connect('changed::color', this._setIconAndLabel.bind(this));
         this._iconColorChangedId = this._settings.connect('changed::icon-color', this._setIconAndLabel.bind(this));
+        this._textColorChangedId = this._settings.connect('changed::text-color', this._setIconAndLabel.bind(this));
     }
 
     _setIconAndLabel() {
         let iconPath = this._settings.get_string('icon-path');
         if (!GLib.file_test(iconPath, GLib.FileTest.EXISTS)) {
-            this._activitiesIconButton._iconBin.hide();
+            this._activitiesButton._iconBin.hide();
         } else {
-            this._activitiesIconButton._iconBin.child = new St.Icon(
+            this._activitiesButton._iconBin.child = new St.Icon(
                 {gicon: Gio.icon_new_for_string(iconPath), icon_size: Main.panel.height * this._settings.get_double('icon-size') / 2});
-            this._activitiesIconButton._iconBin.show();
+            this._activitiesButton._iconBin.show();
         }
 
         let labelText = this._settings.get_string('text');
 
         if (labelText === 'default') {
             const text = `${GLib.get_os_info('PRETTY_NAME')} | ${imports.misc.config.PACKAGE_NAME.toUpperCase()} ${imports.misc.config.PACKAGE_VERSION}`;
-            this._activitiesIconButton.label = text;
-            this._activitiesIconButton._textBin.show();
+            this._activitiesButton.label = text;
+            this._activitiesButton._textBin.show();
         } else if (labelText === '') {
-            this._activitiesIconButton._textBin.hide();
+            this._activitiesButton._textBin.hide();
         } else {
-            this._activitiesIconButton.label = labelText;
-            this._activitiesIconButton._textBin.show();
+            this._activitiesButton.label = labelText;
+            this._activitiesButton._textBin.show();
         }
 
         if (!GLib.file_test(iconPath, GLib.FileTest.EXISTS) && !labelText)
-            this._activitiesIconButton.hide();
+            this._activitiesButton.hide();
         else
-            this._activitiesIconButton.show();
+            this._activitiesButton.show();
 
-        this._activitiesIconButton.set_style(`-natural-hpadding: ${this._settings.get_int('padding')}px`);
-        this._activitiesIconButton._iconBin.set_style(`color: ${this._settings.get_string('icon-color')}`);
-        this._activitiesIconButton._textBin.set_style(`color: ${this._settings.get_string('color')}`);
+        this._activitiesButton.set_style(`-natural-hpadding: ${this._settings.get_int('padding')}px`);
+        this._activitiesButton._iconBin.set_style(`color: ${this._settings.get_string('icon-color')}`);
+        this._activitiesButton._textBin.set_style(`color: ${this._settings.get_string('text-color')}`);
 
-        if (this._activitiesIconButton._iconBin.visible && !this._activitiesIconButton._textBin.visible)
-            this._activitiesIconButton.set_style(`-natural-hpadding: ${this._settings.get_int('padding')}px; -minimum-hpadding: 0;`);
+        if (this._activitiesButton._iconBin.visible && !this._activitiesButton._textBin.visible)
+            this._activitiesButton.set_style(`-natural-hpadding: ${this._settings.get_int('padding')}px; -minimum-hpadding: 0;`);
 
-        if (this._activitiesIconButton._iconBin.visible && this._activitiesIconButton._textBin.visible) {
-            this._activitiesIconButton._textBin.set_style(
+        if (this._activitiesButton._iconBin.visible && this._activitiesButton._textBin.visible) {
+            this._activitiesButton._textBin.set_style(
                 `padding-left: ${this._settings.get_int('gap')}px;
-                color: ${this._settings.get_string('color')}`
+                color: ${this._settings.get_string('text-color')}`
             );
         }
 
-        if (!this._activitiesIconButton._iconBin.visible && this._activitiesIconButton._textBin.visible) {
-            this._activitiesIconButton._iconBin.show();
-            this._activitiesIconButton._textBin.set_style(
-                `padding-left: 0;
-                color: ${this._settings.get_string('color')}`
+        if (!this._activitiesButton._iconBin.visible && this._activitiesButton._textBin.visible) {
+            this._activitiesButton._iconBin.show();
+            this._activitiesButton._textBin.set_style(
+                `padding-left: 0; color: ${this._settings.get_string('text-color')}`
             );
-            this._activitiesIconButton._iconBin.hide();
+            this._activitiesButton._iconBin.hide();
         }
     }
 
@@ -186,13 +185,13 @@ class Configurator {
         this._settings = ExtensionUtils.getSettings();
         let rightClick = this._settings.get_boolean('right-click');
 
-        this._activitiesIconButton = new ActivitiesIconButton(rightClick);
+        this._activitiesButton = new ActivitiesButton(rightClick);
 
         this._connectSettings();
         this._setIconAndLabel();
 
         Main.panel.statusArea.activities.container.hide();
-        Main.panel.addToStatusArea('activities-icon-button', this._activitiesIconButton, 0, 'left');
+        Main.panel.addToStatusArea('activities-icon-button', this._activitiesButton, 0, 'left');
     }
 
     disable() {
@@ -203,8 +202,8 @@ class Configurator {
             this._rightClickChangeId,
             this._paddingChangedId,
             this._gapChangedId,
-            this._colorChangedId,
             this._iconColorChangedId,
+            this._textColorChangedId,
         ];
 
         connectionsIds.forEach(id => {
@@ -212,8 +211,8 @@ class Configurator {
                 this._settings.disconnect(id);
         });
 
-        this._activitiesIconButton.destroy();
-        this._activitiesIconButton = null;
+        this._activitiesButton.destroy();
+        this._activitiesButton = null;
 
         if (Main.sessionMode.currentMode === 'unlock-dialog')
             Main.panel.statusArea.activities.container.hide(); else
@@ -225,6 +224,6 @@ class Configurator {
  *
  */
 function init() {
-    return new Configurator();
+    return new Extension();
 }
 

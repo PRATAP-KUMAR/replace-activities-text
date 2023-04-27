@@ -2,7 +2,9 @@ const {Gtk, Gdk} = imports.gi;
 const ExtensionUtils = imports.misc.extensionUtils;
 const PADDING = 18;
 const GAP = 6;
+const RESET_COLOR = '#f2f2f2ff';
 
+let pictureUrlEntry;
 
 /**
  *
@@ -21,10 +23,10 @@ function buildPrefsWidget() {
 class PrefsWidget {
     constructor() {
         this._settings = ExtensionUtils.getSettings();
-        this._BC_button = new Gtk.ColorButton();
-        this._IC_button = new Gtk.ColorButton();
-        this._setButtonColor(this._BC_button, 'color');
-        this._setButtonColor(this._IC_button, 'icon-color');
+        this._textColorButton = new Gtk.ColorButton();
+        this._iconColorButton = new Gtk.ColorButton();
+        this.setButtonColor(this._iconColorButton, 'icon-color');
+        this.setButtonColor(this._textColorButton, 'text-color');
 
         this.widget = new Gtk.Box({
             orientation: Gtk.Orientation.VERTICAL,
@@ -40,99 +42,229 @@ class PrefsWidget {
             margin_top: 0,
             hexpand: true,
         });
-        this.vbox.set_size_request(60, 60);
 
         this.addBoldTextToBox('Change Activities Text with Logo and Your Preferred Text', this.vbox);
         this.vbox.append(new Gtk.Separator({orientation: Gtk.Orientation.HORIZONTAL, margin_bottom: 5, margin_top: 5}));
-        this.vbox.append(this.addPictureUrl());
-        this.vbox.append(this.addTextUrl());
-        this.vbox.append(this.colorButton('ICON COLOR', this._IC_button, 'icon-color'));
-        this.vbox.append(this.colorButton('TEXT COLOR', this._BC_button, 'color'));
+        this.vbox.append(this._addPictureUrl());
+        this.vbox.append(this._addTextUrl());
+        this.vbox.append(this._colorButton('ICON COLOR', this._iconColorButton, 'icon-color'));
+        this.vbox.append(this._colorButton('TEXT COLOR', this._textColorButton, 'text-color'));
 
-        this.vbox.append(this.adjustPadding());
-        this.vbox.append(this.adjustGap());
-        this.vbox.append(this.adjustLogo());
-        this.vbox.append(this.rightClick());
+        this.vbox.append(this._adjustPadding());
+        this.vbox.append(this._adjustGap());
+        this.vbox.append(this._adjustLogo());
+        this.vbox.append(this._rightClick());
+
         this.vbox.append(new Gtk.Separator({orientation: Gtk.Orientation.HORIZONTAL, margin_bottom: 5, margin_top: 5}));
-        this.vbox.append(this.tip());
+
+        this.vbox.append(this._tip());
 
         this.widget.append(this.vbox);
     }
 
-    addPictureUrl() {
+    _addPictureUrl() {
         let hbox = new Gtk.Box({orientation: Gtk.Orientation.HORIZONTAL, margin_top: 5, hexpand: true});
-        let settingLabel = new Gtk.Label({label: 'Logo', xalign: 0, hexpand: true});
-        this.setting_entry = new Gtk.Entry({margin_start: 5});
-        this.setting_entry.set_width_chars(60);
-        this.setting_entry.set_placeholder_text('enter /path/to/the/logo or click Browse button to choose logo');
+        let label = new Gtk.Label({label: 'Logo', xalign: 0, hexpand: true});
+        pictureUrlEntry = new Gtk.Entry({margin_start: 5});
+        pictureUrlEntry.set_width_chars(60);
+        pictureUrlEntry.set_placeholder_text('enter /path/to/the/logo or click Browse button to choose logo');
 
-        this.resetButton = new Gtk.Button({margin_start: 5});
-        this.resetButton.set_label("Reset to Extensions's Default Icon");
-        this.resetButton.connect('clicked', () => {
+        let resetButton = new Gtk.Button({margin_start: 5});
+        resetButton.set_label("Reset to Extensions's Default Icon");
+        resetButton.connect('clicked', () => {
             this._settings.set_string('icon-path', '/usr/share/icons/Adwaita/symbolic/emotes/face-smile-big-symbolic.svg');
-            this.setting_entry.set_text(this._settings.get_string('icon-path'));
+            pictureUrlEntry.set_text(this._settings.get_string('icon-path'));
         });
 
-        this.noPicButton = new Gtk.Button({margin_start: 5});
-        this.noPicButton.set_label('No Logo');
-        this.noPicButton.connect('clicked', () => {
+        let noPicButton = new Gtk.Button({margin_start: 5});
+        noPicButton.set_label('No Logo');
+        noPicButton.connect('clicked', () => {
             this._settings.set_string('icon-path', '');
-            this.setting_entry.set_text(this._settings.get_string('icon-path'));
+            pictureUrlEntry.set_text(this._settings.get_string('icon-path'));
         });
 
-        this.setting_entry.set_text(this._settings.get_string('icon-path'));
-        this.setting_entry.connect('changed', entry => {
+        pictureUrlEntry.set_text(this._settings.get_string('icon-path'));
+        pictureUrlEntry.connect('changed', entry => {
             this._settings.set_string('icon-path', entry.get_text());
         });
 
-        this.fileChooseButton = new Gtk.Button({margin_start: 5});
-        this.fileChooseButton.set_label('Browse');
-        this.fileChooseButton.connect('clicked', this.showFileChooserDialog.bind(this));
+        let fileChooseButton = new Gtk.Button({margin_start: 5});
+        fileChooseButton.set_label('Browse');
+        fileChooseButton.connect('clicked', this.showFileChooserDialog.bind(this));
 
-        hbox.append(settingLabel);
-        hbox.append(this.setting_entry);
-        hbox.append(this.fileChooseButton);
-        hbox.append(this.resetButton);
-        hbox.append(this.noPicButton);
+        hbox.append(label);
+        hbox.append(pictureUrlEntry);
+        hbox.append(fileChooseButton);
+        hbox.append(resetButton);
+        hbox.append(noPicButton);
 
         return hbox;
     }
 
-    addTextUrl() {
+    _addTextUrl() {
         let hbox = new Gtk.Box({orientation: Gtk.Orientation.HORIZONTAL, margin_top: 5});
-        let settingL = new Gtk.Label({label: 'Text', xalign: 0, hexpand: true});
-        this.setting_e = new Gtk.Entry({margin_start: 5});
-        this.setting_e.set_width_chars(60);
-        this.setting_e.set_placeholder_text('type your preferred text or leave it blank for no text.');
+        let label = new Gtk.Label({label: 'Text', xalign: 0, hexpand: true});
+        let textUrlEntry = new Gtk.Entry({margin_start: 5});
+        textUrlEntry.set_width_chars(60);
+        textUrlEntry.set_placeholder_text('type your preferred text or leave it blank for no text.');
 
-        this.resetTextButton = new Gtk.Button({margin_start: 5});
-        this.resetTextButton.set_label("Reset to Extensions's Default Text");
-        this.resetTextButton.connect('clicked', () => {
+        let resetButton = new Gtk.Button({margin_start: 5});
+        resetButton.set_label("Reset to Extensions's Default Text");
+        resetButton.connect('clicked', () => {
             this._settings.set_string('text', 'default');
-            this.setting_e.set_text(this._settings.get_string('text'));
+            textUrlEntry.set_text(this._settings.get_string('text'));
         });
 
-        this.noTextButton = new Gtk.Button({margin_start: 5});
-        this.noTextButton.set_label('No Text');
-        this.noTextButton.connect('clicked', () => {
+        let noTextButton = new Gtk.Button({margin_start: 5});
+        noTextButton.set_label('No Text');
+        noTextButton.connect('clicked', () => {
             this._settings.set_string('text', '');
-            this.setting_e.set_text(this._settings.get_string('text'));
+            textUrlEntry.set_text(this._settings.get_string('text'));
         });
 
-        this.setting_e.set_text(this._settings.get_string('text'));
-        this.setting_e.connect('changed', entry => {
+        textUrlEntry.set_text(this._settings.get_string('text'));
+        textUrlEntry.connect('changed', entry => {
             this._settings.set_string('text', entry.get_text());
         });
 
-        hbox.append(settingL);
-        hbox.append(this.setting_e);
-        hbox.append(this.resetTextButton);
-        hbox.append(this.noTextButton);
+        hbox.append(label);
+        hbox.append(textUrlEntry);
+        hbox.append(resetButton);
+        hbox.append(noTextButton);
 
         return hbox;
     }
 
-    _setButtonColor(button, id) {
+    _colorButton(label, button, id) {
+        let hbox = new Gtk.Box({orientation: Gtk.Orientation.HORIZONTAL, margin_top: 5});
+        let colorLabel = new Gtk.Label({label, xalign: 0, hexpand: true});
+
+        let resetColorButton = new Gtk.Button({margin_start: 5});
+        resetColorButton.set_label(`Reset to Extensions Default Value -> ${RESET_COLOR}`);
+        resetColorButton.connect('clicked', () => {
+            this._settings.set_string(id, `${RESET_COLOR}`);
+            this.setButtonColor(button, id);
+        });
+
+        hbox.append(colorLabel);
+        hbox.append(this.selectButtonColor(button, id));
+        hbox.append(resetColorButton);
+        return hbox;
+    }
+
+    _adjustPadding() {
+        let hbox = new Gtk.Box({orientation: Gtk.Orientation.HORIZONTAL, margin_top: 5});
+        let paddingLabel = new Gtk.Label({label: 'Adjust Padding (Left & Right padding on Container)', xalign: 0, hexpand: true});
+        let paddingLabelButton = new Gtk.SpinButton();
+        paddingLabelButton.set_range(0, 18);
+        paddingLabelButton.set_increments(2, 4);
+        paddingLabelButton.set_value(this._settings.get_int('padding'));
+        paddingLabelButton.connect('value-changed', entry => {
+            this._settings.set_int('padding', entry.get_value());
+        });
+
+        let resetPaddingButton = new Gtk.Button({margin_start: 5});
+        resetPaddingButton.set_label("Reset to Extensions's Default Value");
+        resetPaddingButton.connect('clicked', () => {
+            this._settings.set_int('padding', PADDING);
+            paddingLabelButton.set_value(this._settings.get_int('padding'));
+        });
+
+        hbox.append(paddingLabel);
+        hbox.append(paddingLabelButton);
+        hbox.append(resetPaddingButton);
+
+        return hbox;
+    }
+
+    _adjustGap() {
+        let hbox = new Gtk.Box({orientation: Gtk.Orientation.HORIZONTAL, margin_top: 5});
+        let adjustGapLabel = new Gtk.Label({label: 'Adjust Gap Between, When Icon and Text are shown', xalign: 0, hexpand: true});
+        let adjustGapLabelButton = new Gtk.SpinButton();
+        adjustGapLabelButton.set_range(0, 18);
+        adjustGapLabelButton.set_increments(2, 4);
+        adjustGapLabelButton.set_value(this._settings.get_int('gap'));
+        adjustGapLabelButton.connect('value-changed', entry => {
+            this._settings.set_int('gap', entry.get_value());
+        });
+
+        let resetGapButton = new Gtk.Button({margin_start: 5});
+        resetGapButton.set_label("Reset to Extensions's Default Value");
+        resetGapButton.connect('clicked', () => {
+            this._settings.set_int('gap', GAP);
+            adjustGapLabelButton.set_value(this._settings.get_int('gap'));
+        });
+
+        hbox.append(adjustGapLabel);
+        hbox.append(adjustGapLabelButton);
+        hbox.append(resetGapButton);
+
+        return hbox;
+    }
+
+    _adjustLogo() {
+        let hbox = new Gtk.Box({orientation: Gtk.Orientation.HORIZONTAL, margin_top: 5});
+        let logoLabel = new Gtk.Label({label: 'Adjust Icon Size', xalign: 0, hexpand: true});
+
+        let logoAdjustment = new Gtk.Adjustment({
+            upper: 2,
+            'step-increment': 0.1,
+            'page-increment': 0.1,
+            lower: 1,
+        });
+
+        let logoEntry = new Gtk.Scale({
+            hexpand: true,
+            margin_start: 20,
+            visible: true,
+            'can-focus': true,
+            digits: 1,
+            adjustment: logoAdjustment,
+        });
+
+        let adjustLogoResetButton = new Gtk.Button({margin_start: 5});
+        adjustLogoResetButton.set_label("Reset to Extensions's Default Size");
+        adjustLogoResetButton.connect('clicked', () => {
+            this._settings.set_double('icon-size', 1.5);
+            logoEntry.set_value(this._settings.get_double('icon-size'));
+        });
+
+        logoEntry.set_value(this._settings.get_double('icon-size'));
+        logoEntry.connect('value-changed', entry => {
+            this._settings.set_double('icon-size', entry.get_value());
+        });
+
+        hbox.append(logoLabel);
+        hbox.append(logoEntry);
+        hbox.append(adjustLogoResetButton);
+
+        return hbox;
+    }
+
+    _rightClick() {
+        let hbox = new Gtk.Box({orientation: Gtk.Orientation.HORIZONTAL, margin_top: 5});
+        let rightClickLabel = new Gtk.Label({label: "Right Click on 'Activities' Area Opens Extension Prefs", xalign: 0, hexpand: true});
+        let rightClickSwitch = new Gtk.Switch({active: this._settings.get_boolean('right-click')});
+        rightClickSwitch.connect('notify::active', button => {
+            this._settings.set_boolean('right-click', button.active);
+        });
+
+        hbox.append(rightClickLabel);
+        hbox.append(rightClickSwitch);
+        return hbox;
+    }
+
+    _tip() {
+        let hbox = new Gtk.Box({orientation: Gtk.Orientation.HORIZONTAL, margin_top: 5});
+        let tipLabel = new Gtk.Label({label: 'Note: Use Icon of Square Shape for Setting the Logo', xalign: 0, hexpand: true});
+
+        hbox.append(tipLabel);
+        return hbox;
+    }
+
+    // helper functions
+
+    setButtonColor(button, id) {
         let rgba = new Gdk.RGBA();
         let hexString = this._settings.get_string(id);
         rgba.parse(hexString);
@@ -141,171 +273,44 @@ class PrefsWidget {
 
     selectButtonColor(button, id) {
         let hbox = new Gtk.Box({orientation: Gtk.Orientation.HORIZONTAL, margin_top: 5, halign: Gtk.Align.END});
-        button.connect('notify::rgba', () => this._onPanelColorChanged(button, id));
+        button.connect('notify::rgba', () => this.onPanelColorChanged(button, id));
         hbox.append(button);
 
         return hbox;
     }
 
-    _onPanelColorChanged(button, id) {
+    onPanelColorChanged(button, id) {
         let rgba = button.get_rgba();
         let css = rgba.to_string();
-        let hexString = this._cssHexString(css);
+        let hexString = this.cssHexString(css);
         this._settings.set_string(id, hexString);
     }
 
-    _cssHexString(css) {
+    cssHexString(css) {
         let rrggbb = '#';
         let start;
         for (let loop = 0; loop < 3; loop++) {
             let end = 0;
             let xx = '';
-            for (let loop = 0; loop < 2; loop++) {
+            for (let loop1 = 0; loop1 < 2; loop1++) {
                 while (true) {
                     let x = css.slice(end, end + 1);
-                    if (x == '(' || x == ',' || x == ')')
+                    if (x === '(' || x === ',' || x === ')')
                         break;
                     end += 1;
                 }
-                if (loop == 0) {
+                if (loop1 === 0) {
                     end += 1;
                     start = end;
                 }
             }
             xx = parseInt(css.slice(start, end)).toString(16);
-            if (xx.length == 1)
+            if (xx.length === 1)
                 xx = `0${xx}`;
             rrggbb += xx;
             css = css.slice(end);
         }
         return rrggbb;
-    }
-
-    colorButton(label, button, id) {
-        let hbox = new Gtk.Box({orientation: Gtk.Orientation.HORIZONTAL, margin_top: 5});
-        let colorLabel = new Gtk.Label({label, xalign: 0, hexpand: true});
-
-        this.resetIconButton = new Gtk.Button({margin_start: 5});
-        this.resetIconButton.set_label('Reset');
-        this.resetIconButton.connect('clicked', () => {
-            this._settings.set_string(id, '#f2f2f2ff');
-            this._setButtonColor(button, id);
-        });
-
-        hbox.append(colorLabel);
-        hbox.append(this.selectButtonColor(button, id));
-        hbox.append(this.resetIconButton);
-        return hbox;
-    }
-
-    adjustGap() {
-        let hbox = new Gtk.Box({orientation: Gtk.Orientation.HORIZONTAL, margin_top: 5});
-        let adjustGapLabel = new Gtk.Label({label: 'Adjust Gap Between, When Icon and Text are shown', xalign: 0, hexpand: true});
-        this._adjustGapLabelButton = new Gtk.SpinButton();
-        this._adjustGapLabelButton.set_range(0, 18);
-        this._adjustGapLabelButton.set_increments(2, 4);
-        this._adjustGapLabelButton.set_value(this._settings.get_int('gap'));
-        this._adjustGapLabelButton.connect('value-changed', entry => {
-            this._settings.set_int('gap', entry.get_value());
-        });
-
-        this.resetIconButton = new Gtk.Button({margin_start: 5});
-        this.resetIconButton.set_label("Reset to Extensions's Default Value");
-        this.resetIconButton.connect('clicked', () => {
-            this._settings.set_int('gap', GAP);
-            this._adjustGapLabelButton.set_value(this._settings.get_int('gap'));
-        });
-
-        hbox.append(adjustGapLabel);
-        hbox.append(this._adjustGapLabelButton);
-        hbox.append(this.resetIconButton);
-
-        return hbox;
-    }
-
-    adjustPadding() {
-        let hbox = new Gtk.Box({orientation: Gtk.Orientation.HORIZONTAL, margin_top: 5});
-        let paddingLabel = new Gtk.Label({label: 'Adjust Padding (Left & Right padding on Container)', xalign: 0, hexpand: true});
-        this._paddingLabelButton = new Gtk.SpinButton();
-        this._paddingLabelButton.set_range(0, 18);
-        this._paddingLabelButton.set_increments(2, 4);
-        this._paddingLabelButton.set_value(this._settings.get_int('padding'));
-        this._paddingLabelButton.connect('value-changed', entry => {
-            this._settings.set_int('padding', entry.get_value());
-        });
-
-        this.resetIconButton = new Gtk.Button({margin_start: 5});
-        this.resetIconButton.set_label("Reset to Extensions's Default Value");
-        this.resetIconButton.connect('clicked', () => {
-            this._settings.set_int('padding', PADDING);
-            this._paddingLabelButton.set_value(this._settings.get_int('padding'));
-        });
-
-        hbox.append(paddingLabel);
-        hbox.append(this._paddingLabelButton);
-        hbox.append(this.resetIconButton);
-
-        return hbox;
-    }
-
-    adjustLogo() {
-        let hbox = new Gtk.Box({orientation: Gtk.Orientation.HORIZONTAL, margin_top: 5});
-        let logoLabel = new Gtk.Label({label: 'Adjust Icon Size', xalign: 0, hexpand: true});
-
-        this.logo_adjustment = new Gtk.Adjustment({
-            upper: 2,
-            'step-increment': 0.1,
-            'page-increment': 0.1,
-            lower: 1,
-        });
-
-        this.logo_entry = new Gtk.Scale({
-            hexpand: true,
-            margin_start: 20,
-            visible: true,
-            'can-focus': true,
-            digits: 1,
-            adjustment: this.logo_adjustment,
-        });
-
-        this.resetIconButton = new Gtk.Button({margin_start: 5});
-        this.resetIconButton.set_label("Reset to Extensions's Default Size");
-        this.resetIconButton.connect('clicked', () => {
-            this._settings.set_double('icon-size', 1.5);
-            this.logo_entry.set_value(this._settings.get_double('icon-size'));
-        });
-
-        this.logo_entry.set_value(this._settings.get_double('icon-size'));
-        this.logo_entry.connect('value-changed', entry => {
-            this._settings.set_double('icon-size', entry.get_value());
-        });
-
-        hbox.append(logoLabel);
-        hbox.append(this.logo_entry);
-        hbox.append(this.resetIconButton);
-
-        return hbox;
-    }
-
-    rightClick() {
-        let hbox = new Gtk.Box({orientation: Gtk.Orientation.HORIZONTAL, margin_top: 5});
-        let rightClickLabel = new Gtk.Label({label: "Right Click on 'Activities' Area Opens Extension Prefs", xalign: 0, hexpand: true});
-        this.rightClick_switch = new Gtk.Switch({active: this._settings.get_boolean('right-click')});
-        this.rightClick_switch.connect('notify::active', button => {
-            this._settings.set_boolean('right-click', button.active);
-        });
-
-        hbox.append(rightClickLabel);
-        hbox.append(this.rightClick_switch);
-        return hbox;
-    }
-
-    tip() {
-        let hbox = new Gtk.Box({orientation: Gtk.Orientation.HORIZONTAL, margin_top: 5});
-        let tipLabel = new Gtk.Label({label: 'Note: Use Icon of Square Shape for Setting the Logo', xalign: 0, hexpand: true});
-
-        hbox.append(tipLabel);
-        return hbox;
     }
 
     showFileChooserDialog() {
@@ -323,7 +328,7 @@ class PrefsWidget {
             if (response === Gtk.ResponseType.ACCEPT) {
                 let file = dialog.get_file().get_path();
                 if (file.length > 0)
-                    this.setting_entry.set_text(file);
+                    pictureUrlEntry.set_text(file);
                 fileChooser.destroy();
             }
         });
