@@ -28,18 +28,21 @@ Copyright (c)
   This extension is a derived work of the Gnome Shell.
   */
 
-'use strict';
+import GObject from 'gi://GObject';
+import St from 'gi://St';
+import Atk from 'gi://Atk';
+import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 
-const {GObject, St, Atk, Clutter, Gio, GLib} = imports.gi;
+import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-const Main = imports.ui.main;
-const PanelMenu = imports.ui.panelMenu;
+import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+import * as config from 'resource:///org/gnome/shell/misc/config.js';
 
-const ExtensionUtils = imports.misc.extensionUtils;
-// const PADDING = Main.panel.statusArea.activities.get_theme_node().get_length('-natural-hpadding');
-// const COLOR = Main.panel.statusArea.activities.get_theme_node().get_foreground_color().to_string(); // "f2f2f2ff"
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-var ActivitiesButton = GObject.registerClass(
+const ActivitiesButton = GObject.registerClass(
     class ActivitiesButton extends PanelMenu.Button {
         _init(rightClick) {
             super._init(0, 'replace activities text extension', false);
@@ -54,6 +57,8 @@ var ActivitiesButton = GObject.registerClass(
             this.add_actor(this._iconLabelBox);
             this.label_actor = this._label;
             this._boolean = rightClick;
+
+            this._extension = Extension.lookupByURL(import.meta.url);
 
             this._overviewShowingSig = 0;
             this._overviewHidingSig = 0;
@@ -78,9 +83,7 @@ var ActivitiesButton = GObject.registerClass(
 
         vfunc_event(event) {
             if (event.type() === Clutter.EventType.BUTTON_RELEASE && event.get_button() === 3 && this._boolean) {
-                let appPath = '/usr/bin/gnome-extensions';
-                if (GLib.file_test(appPath, GLib.FileTest.EXISTS))
-                    ExtensionUtils.openPrefs();
+                this._extension.openPreferences();
 
                 return Clutter.EVENT_PROPAGATE;
             } else {
@@ -111,44 +114,41 @@ var ActivitiesButton = GObject.registerClass(
                 Main.overview.disconnect(this._overviewHidingSig);
             super.destroy();
         }
-    });
-
-class Extension {
-    _connectSettings() {
-        this._iconPathChangeId = this._settings.connect('changed::icon-path', this._setIconAndLabel.bind(this));
-        this._textChangeId = this._settings.connect('changed::text', this._setIconAndLabel.bind(this));
-        this._iconSizeChangeId = this._settings.connect('changed::icon-size', this._setIconAndLabel.bind(this));
-        this._rightClickChangeId = this._settings.connect('changed::right-click', this._rightClick.bind(this));
-        this._paddingChangedId = this._settings.connect('changed::padding', this._setIconAndLabel.bind(this));
-        this._gapChangedId = this._settings.connect('changed::gap', this._setIconAndLabel.bind(this));
-        this._iconColorChangedId = this._settings.connect('changed::icon-color', this._setIconAndLabel.bind(this));
-        this._textColorChangedId = this._settings.connect('changed::text-color', this._setIconAndLabel.bind(this));
     }
+);
 
+export default class MyExtension extends Extension {
     _setIconAndLabel() {
         let iconPath = this._settings.get_string('icon-path');
         if (!GLib.file_test(iconPath, GLib.FileTest.EXISTS)) {
             this._activitiesButton._iconBin.hide();
         } else {
             this._activitiesButton._iconBin.child = new St.Icon(
-                {gicon: Gio.icon_new_for_string(iconPath), icon_size: Main.panel.height * this._settings.get_double('icon-size') / 2});
+                {
+                    gicon: Gio.icon_new_for_string(iconPath),
+                    icon_size: Main.panel.height * this._settings.get_double('icon-size') / 2,
+                }
+            );
             this._activitiesButton._iconBin.show();
         }
 
         let labelText = this._settings.get_string('text');
 
-        if (labelText === 'default') {
-            const text = `${GLib.get_os_info('PRETTY_NAME')} | ${imports.misc.config.PACKAGE_NAME.toUpperCase()} ${imports.misc.config.PACKAGE_VERSION}`;
+        if (labelText === '') {
+            const text = `${GLib.get_os_info('PRETTY_NAME')} | ${config.PACKAGE_NAME.toUpperCase()} ${config.PACKAGE_VERSION}`;
             this._activitiesButton.label = text;
             this._activitiesButton._textBin.show();
-        } else if (labelText === '') {
-            this._activitiesButton._textBin.hide();
         } else {
             this._activitiesButton.label = labelText;
             this._activitiesButton._textBin.show();
         }
 
-        if (!GLib.file_test(iconPath, GLib.FileTest.EXISTS) && !labelText)
+        if (this._settings.get_boolean('no-text'))
+            this._activitiesButton._textBin.hide();
+        else
+            this._activitiesButton._textBin.show();
+
+        if (!GLib.file_test(iconPath, GLib.FileTest.EXISTS) && !this._activitiesButton._textBin.visible)
             this._activitiesButton.hide();
         else
             this._activitiesButton.show();
@@ -176,15 +176,10 @@ class Extension {
         }
     }
 
-    _rightClick() {
-        this.disable();
-        this.enable();
-    }
-
     enable() {
-        this._settings = ExtensionUtils.getSettings();
-        let rightClick = this._settings.get_boolean('right-click');
+        this._settings = this.getSettings();
 
+        let rightClick = this._settings.get_boolean('right-click');
         this._activitiesButton = new ActivitiesButton(rightClick);
 
         this._connectSettings();
@@ -204,12 +199,15 @@ class Extension {
             this._gapChangedId,
             this._iconColorChangedId,
             this._textColorChangedId,
+            this._noTextChangedId,
         ];
 
         connectionsIds.forEach(id => {
             if (id)
                 this._settings.disconnect(id);
         });
+
+        this._settings = null;
 
         this._activitiesButton.destroy();
         this._activitiesButton = null;
@@ -218,12 +216,21 @@ class Extension {
             Main.panel.statusArea.activities.container.hide(); else
             Main.panel.statusArea.activities.container.show();
     }
-}
 
-/**
- *
- */
-function init() {
-    return new Extension();
-}
+    _connectSettings() {
+        this._iconPathChangeId = this._settings.connect('changed::icon-path', this._setIconAndLabel.bind(this));
+        this._textChangeId = this._settings.connect('changed::text', this._setIconAndLabel.bind(this));
+        this._iconSizeChangeId = this._settings.connect('changed::icon-size', this._setIconAndLabel.bind(this));
+        this._rightClickChangeId = this._settings.connect('changed::right-click', this._rightClick.bind(this));
+        this._paddingChangedId = this._settings.connect('changed::padding', this._setIconAndLabel.bind(this));
+        this._gapChangedId = this._settings.connect('changed::gap', this._setIconAndLabel.bind(this));
+        this._iconColorChangedId = this._settings.connect('changed::icon-color', this._setIconAndLabel.bind(this));
+        this._textColorChangedId = this._settings.connect('changed::text-color', this._setIconAndLabel.bind(this));
+        this._noTextChangedId = this._settings.connect('changed::no-text', this._setIconAndLabel.bind(this));
+    }
 
+    _rightClick() {
+        this.disable();
+        this.enable();
+    }
+}

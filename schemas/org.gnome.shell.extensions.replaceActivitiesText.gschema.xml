@@ -9,19 +9,25 @@
 </key>
 
 <key name="text" type="s">
-<default>'Default'</default>
+<default>''</default>
+<summary>Summary</summary>
+<description>Description</description>
+</key>
+
+<key name="no-text" type="b">
+<default>false</default>
 <summary>Summary</summary>
 <description>Description</description>
 </key>
 
 <key name="icon-color" type="s">
-<default>'blue'</default>
+<default>'#f2f2f2'</default>
 <summary>Summary</summary>
 <description>Description</description>
 </key>
 
 <key name="text-color" type="s">
-<default>'greenyellow'</default>
+<default>'#f2f2f2'</default>
 <summary>Summary</summary>
 <description>Description</description>
 </key>
