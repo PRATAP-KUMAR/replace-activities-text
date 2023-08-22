@@ -10,7 +10,7 @@ const RESET_COLOR = '#f2f2f2ff';
 
 let pictureUrlEntry;
 
-export default class MyExtensionPreferences extends ExtensionPreferences {
+export default class ReplaceActivitiesTextExtensionPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const page = new Adw.PreferencesPage();
         const group = new Adw.PreferencesGroup({
@@ -23,15 +23,6 @@ export default class MyExtensionPreferences extends ExtensionPreferences {
         window._noTextButton = new Gtk.Button({margin_start: 5});
         setButtonColor(window._iconColorButton, 'icon-color');
         setButtonColor(window._textColorButton, 'text-color');
-
-        window._widget = new Gtk.Box({
-            orientation: Gtk.Orientation.VERTICAL,
-            margin_top: 10,
-            margin_bottom: 10,
-            margin_start: 10,
-            margin_end: 10,
-            hexpand: true,
-        });
 
         const addPictureUrl = () => {
             let hbox = new Gtk.Box({orientation: Gtk.Orientation.HORIZONTAL, margin_top: 5, hexpand: true});
@@ -80,6 +71,7 @@ export default class MyExtensionPreferences extends ExtensionPreferences {
                 window._settings.set_string('text', '');
                 textUrlEntry.set_text(window._settings.get_string('text'));
                 window._settings.set_boolean('no-text', false);
+                let boolean = window._settings.get_boolean('no-text');
                 window._noTextButton.set_label(boolean ? 'Show Text' : 'Hide Text');
             });
 
@@ -112,7 +104,7 @@ export default class MyExtensionPreferences extends ExtensionPreferences {
             resetColorButton.set_label(`Reset to Extensions Default Value -> ${RESET_COLOR}`);
             resetColorButton.connect('clicked', () => {
                 window._settings.set_string(id, `${RESET_COLOR}`);
-                this.setButtonColor(button, id);
+                setButtonColor(button, id);
             });
 
             hbox.append(colorLabel);
@@ -322,4 +314,3 @@ export default class MyExtensionPreferences extends ExtensionPreferences {
         window.maximize();
     }
 }
-

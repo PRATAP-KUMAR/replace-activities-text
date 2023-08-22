@@ -84,7 +84,6 @@ const ActivitiesButton = GObject.registerClass(
         vfunc_event(event) {
             if (event.type() === Clutter.EventType.BUTTON_RELEASE && event.get_button() === 3 && this._boolean) {
                 this._extension.openPreferences();
-
                 return Clutter.EVENT_PROPAGATE;
             } else {
                 if (event.type() === Clutter.EventType.TOUCH_END ||
@@ -117,7 +116,7 @@ const ActivitiesButton = GObject.registerClass(
     }
 );
 
-export default class MyExtension extends Extension {
+export default class ReplaceActivitiesTextExtension extends Extension {
     _setIconAndLabel() {
         let iconPath = this._settings.get_string('icon-path');
         if (!GLib.file_test(iconPath, GLib.FileTest.EXISTS)) {
@@ -176,6 +175,23 @@ export default class MyExtension extends Extension {
         }
     }
 
+    _connectSettings() {
+        this._iconPathChangeId = this._settings.connect('changed::icon-path', this._setIconAndLabel.bind(this));
+        this._textChangeId = this._settings.connect('changed::text', this._setIconAndLabel.bind(this));
+        this._iconSizeChangeId = this._settings.connect('changed::icon-size', this._setIconAndLabel.bind(this));
+        this._rightClickChangeId = this._settings.connect('changed::right-click', this._rightClick.bind(this));
+        this._paddingChangedId = this._settings.connect('changed::padding', this._setIconAndLabel.bind(this));
+        this._gapChangedId = this._settings.connect('changed::gap', this._setIconAndLabel.bind(this));
+        this._iconColorChangedId = this._settings.connect('changed::icon-color', this._setIconAndLabel.bind(this));
+        this._textColorChangedId = this._settings.connect('changed::text-color', this._setIconAndLabel.bind(this));
+        this._noTextChangedId = this._settings.connect('changed::no-text', this._setIconAndLabel.bind(this));
+    }
+
+    _rightClick() {
+        this.disable();
+        this.enable();
+    }
+
     enable() {
         this._settings = this.getSettings();
 
@@ -213,24 +229,8 @@ export default class MyExtension extends Extension {
         this._activitiesButton = null;
 
         if (Main.sessionMode.currentMode === 'unlock-dialog')
-            Main.panel.statusArea.activities.container.hide(); else
+            Main.panel.statusArea.activities.container.hide();
+        else
             Main.panel.statusArea.activities.container.show();
-    }
-
-    _connectSettings() {
-        this._iconPathChangeId = this._settings.connect('changed::icon-path', this._setIconAndLabel.bind(this));
-        this._textChangeId = this._settings.connect('changed::text', this._setIconAndLabel.bind(this));
-        this._iconSizeChangeId = this._settings.connect('changed::icon-size', this._setIconAndLabel.bind(this));
-        this._rightClickChangeId = this._settings.connect('changed::right-click', this._rightClick.bind(this));
-        this._paddingChangedId = this._settings.connect('changed::padding', this._setIconAndLabel.bind(this));
-        this._gapChangedId = this._settings.connect('changed::gap', this._setIconAndLabel.bind(this));
-        this._iconColorChangedId = this._settings.connect('changed::icon-color', this._setIconAndLabel.bind(this));
-        this._textColorChangedId = this._settings.connect('changed::text-color', this._setIconAndLabel.bind(this));
-        this._noTextChangedId = this._settings.connect('changed::no-text', this._setIconAndLabel.bind(this));
-    }
-
-    _rightClick() {
-        this.disable();
-        this.enable();
     }
 }
